@@ -1,24 +1,21 @@
-import logo from './logo.svg';
-import './App.css';
+import { Routes, Route } from "react-router-dom";
+import store from "./store";
+import Signup from "./components/pages/Signup";
+import { Provider } from "react-redux";
+import Login from "./components/pages/Login";
+import Navbar from "./components/UI/Navbar";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Provider store={store}>
+      <Navbar />
+      {console.log(process.env.REACT_APP_FIREBASE_API_KEY)}
+      <Routes>
+        <Route path="/" element={<div>Home Page</div>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Routes>
+    </Provider>
   );
 }
 
