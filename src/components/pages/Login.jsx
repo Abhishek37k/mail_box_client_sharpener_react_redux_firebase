@@ -1,11 +1,78 @@
-import React from 'react'
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { loginUser } from "../../store/auth";
+import { Form, Button, Card, Alert, Container } from "react-bootstrap";
 
-function login() {
+const Login = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const error = useSelector((state) => state.auth.error);
+
+  const formSubmitHandler = async (e) => {
+    e.preventDefault();
+    const success = await dispatch(loginUser({ email, password }));
+    console.log("Login success:", success);
+    if (success) {
+      navigate("/welcome");
+    }
+  };
+
   return (
-    <div>
-      login page lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-    </div>
-  )
-}
+    <Container
+      className="d-flex justify-content-center align-items-center"
+      style={{ minHeight: "90vh" }}
+    >
+      <div className="w-100" style={{ maxWidth: "400px" }}>
+        <Card className="shadow-lg">
+          <Card.Body>
+            <h2 className="text-center mb-4">Login</h2>
+            {error && <Alert variant="danger">{error}</Alert>}
+            <Form onSubmit={formSubmitHandler}>
+              <Form.Group id="email" className="mb-3">
+                <Form.Label>Email</Form.Label>
+                <Form.Control
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </Form.Group>
 
-export default login
+              <Form.Group id="password" className="mb-3">
+                <Form.Label>Password</Form.Label>
+                <Form.Control
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </Form.Group>
+
+              <Button className="w-100" type="submit">
+                Login
+              </Button>
+            </Form>
+
+            <div className="text-center mt-3">
+              Doesn't have an account?{" "}
+              <Button
+                variant="link"
+                onClick={() => navigate("/signup")}
+                className="p-0"
+              >
+                Signup
+              </Button>
+            </div>
+          </Card.Body>
+        </Card>
+      </div>
+    </Container>
+  );
+};
+
+export default Login;
