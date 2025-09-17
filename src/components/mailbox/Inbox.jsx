@@ -1,18 +1,62 @@
 import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { Container, Row, Col, ListGroup, Button, Card } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  ListGroup,
+  Button,
+  Card,
+  Badge,
+} from "react-bootstrap";
+import { mailActions } from "../../store/mail-slice";
 
 const Inbox = () => {
   const [mails, setMails] = useState([]);
   const [selectedMail, setSelectedMail] = useState(null);
   const navigate = useNavigate();
-  const sanitizeEmail = (email) => {
-    return email.replace(/\./g, ",");
-  };
+  const dispatch = useDispatch();
+
+  const sanitizeEmail = (email) => email.replace(/\./g, ",");
   const email = useSelector((state) => state.auth.userEmail);
   const dbUrl = process.env.REACT_APP_FIREBASE_DB_URL;
 
+  // 🔹 Count unread mails
+  const unreadCount = mails.filter((mail) => !mail.read).length;
+
+  // 🔹 Select mail and mark as read
+  const handleSelectMail = async (mail) => {
+    setSelectedMail(mail);
+
+    if (!mail.read) {
+      try {
+        // Update in Firebase
+        await fetch(
+          `${dbUrl}/mails/${sanitizeEmail(email)}/inbox/${mail.id}.json`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ read: true }),
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        // Update local state
+        setMails((prev) =>
+          prev.map((m) =>
+            m.id === mail.id ? { ...m, read: true } : m
+          )
+        );
+
+        // Update Redux (if needed later)
+        dispatch(mailActions.markAsRead(mail.id));
+      } catch (err) {
+        console.error("❌ Error marking mail as read:", err.message);
+      }
+    }
+  };
+
+  // 🔹 Fetch mails on load
   useEffect(() => {
     if (!email) return;
 
@@ -39,19 +83,27 @@ const Inbox = () => {
 
   return (
     <Container fluid className="mt-4">
-      {/* Top Header with Back */}
+      {/* 🔹 Header with unread count */}
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold">📥 Inbox</h2>
-        <Button variant="secondary" onClick={() => navigate("/welcome")}>
-          ⬅ Back to Home
-        </Button>
-
-        <Button variant="secondary" onClick={() => navigate("/mailbox")}>
-          Compose New Mail
-        </Button>
+        <h2 className="fw-bold">
+          📥 Inbox <Badge bg="primary">{unreadCount} Unread</Badge>
+        </h2>
+        <div>
+          <Button
+            variant="secondary"
+            className="me-2"
+            onClick={() => navigate("/welcome")}
+          >
+            ⬅ Back to Home
+          </Button>
+          <Button variant="primary" onClick={() => navigate("/mailbox")}>
+            ✉️ Compose
+          </Button>
+        </div>
       </div>
+
       <Row>
-        {/* Left Mail List */}
+        {/* 🔹 Left Mail List */}
         <Col md={4} style={{ maxHeight: "80vh", overflowY: "auto" }}>
           <ListGroup>
             {mails.length === 0 && (
@@ -62,22 +114,27 @@ const Inbox = () => {
                 key={mail.id}
                 action
                 active={selectedMail?.id === mail.id}
-                onClick={() => setSelectedMail(mail)}
-                className="mb-2 rounded shadow-sm"
+                onClick={() => handleSelectMail(mail)}
+                className="mb-2 rounded shadow-sm d-flex justify-content-between align-items-center"
               >
-                <div className="fw-bold">Subject: {mail.subject}</div>
-                <small className="text-muted">From: {mail.from}</small>
+                <div>
+                  <div className="fw-bold">{mail.subject}</div>
+                  <small className="text-muted">From: {mail.from}</small>
+                </div>
+                {!mail.read && (
+                  <span className="text-primary fw-bold fs-5">●</span>
+                )}
               </ListGroup.Item>
             ))}
           </ListGroup>
         </Col>
 
-        {/* Right Mail Details */}
+        {/* 🔹 Right Mail Details */}
         <Col md={8}>
           {selectedMail ? (
             <Card className="shadow-lg">
               <Card.Body>
-                <h4 className="fw-bold"> Subject: {selectedMail.subject}</h4>
+                <h4 className="fw-bold">Subject: {selectedMail.subject}</h4>
                 <p>
                   <strong>From:</strong> {selectedMail.from}
                 </p>

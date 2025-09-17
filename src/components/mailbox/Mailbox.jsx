@@ -25,6 +25,7 @@ function MailEditor() {
       subject,
       content: htmlContent,
       timestamp: Date.now(),
+       read: false,   
     };
 
     console.log("📨 Preparing to send mail:", mailData);

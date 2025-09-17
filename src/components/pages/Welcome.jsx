@@ -1,13 +1,41 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, Outlet } from "react-router-dom";
 import { authActions } from "../../store/auth-slice";
-import { Button } from "react-bootstrap";
+import { Button, Badge } from "react-bootstrap";
 
 const Welcome = () => {
   const email = useSelector((state) => state.auth.userEmail);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const dbUrl = process.env.REACT_APP_FIREBASE_DB_URL;
+
+  const sanitizeEmail = (email) => email.replace(/\./g, ",");
+
+  // 🔹 Fetch unread count
+  useEffect(() => {
+    if (!email) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch(
+          `${dbUrl}/mails/${sanitizeEmail(email)}/inbox.json`
+        );
+        const data = await response.json();
+        if (data) {
+          const mails = Object.values(data);
+          const count = mails.filter((mail) => !mail.read).length;
+          setUnreadCount(count);
+        }
+      } catch (err) {
+        console.error("❌ Error fetching unread count:", err.message);
+      }
+    };
+
+    fetchUnreadCount();
+  }, [email, dbUrl]);
 
   const logoutHandler = () => {
     dispatch(authActions.logout());
@@ -16,7 +44,6 @@ const Welcome = () => {
 
   return (
     <div style={{ display: "flex", height: "100vh" }}>
-      {/* Sidebar */}
       <div
         style={{
           width: "250px",
@@ -37,10 +64,15 @@ const Welcome = () => {
 
         <Button
           variant="outline-secondary"
-          className="w-100 mb-3"
+          className="w-100 mb-3 d-flex justify-content-between align-items-center"
           onClick={() => navigate("/inbox")}
         >
-          📥 Inbox
+          <span>📥 Inbox</span>
+          {unreadCount > 0 && (
+            <Badge bg="primary" pill>
+              {unreadCount}
+            </Badge>
+          )}
         </Button>
 
         <Button
@@ -64,12 +96,10 @@ const Welcome = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={{ flex: 1, padding: "30px" }}>
         <h2>Welcome to your mailbox 🎉</h2>
         <p>Select an option from the left menu.</p>
 
-        {/* 👉 This will render child routes like Inbox, Sent, Mailbox */}
         <Outlet />
       </div>
     </div>
