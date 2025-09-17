@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,21 +17,18 @@ const Inbox = () => {
   const [selectedMail, setSelectedMail] = useState(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const pollingRef = useRef(null);
 
   const sanitizeEmail = (email) => email.replace(/\./g, ",");
   const email = useSelector((state) => state.auth.userEmail);
   const dbUrl = process.env.REACT_APP_FIREBASE_DB_URL;
 
-  // 🔹 Count unread mails
   const unreadCount = mails.filter((mail) => !mail.read).length;
 
-  // 🔹 Select mail and mark as read
   const handleSelectMail = async (mail) => {
     setSelectedMail(mail);
-
     if (!mail.read) {
       try {
-        // Update in Firebase
         await fetch(
           `${dbUrl}/mails/${sanitizeEmail(email)}/inbox/${mail.id}.json`,
           {
@@ -40,13 +37,9 @@ const Inbox = () => {
             headers: { "Content-Type": "application/json" },
           }
         );
-
-        // Update local state
         setMails((prev) =>
           prev.map((m) => (m.id === mail.id ? { ...m, read: true } : m))
         );
-
-        // Update Redux (if needed later)
         dispatch(mailActions.markAsRead(mail.id));
       } catch (err) {
         console.error("❌ Error marking mail as read:", err.message);
@@ -54,53 +47,64 @@ const Inbox = () => {
     }
   };
 
-  // 🔹 Fetch mails on load
-  useEffect(() => {
-    if (!email) return;
-
-    const fetchMails = async () => {
-      try {
-        const response = await fetch(
-          `${dbUrl}/mails/${sanitizeEmail(email)}/inbox.json`
-        );
-        const data = await response.json();
-        if (data) {
-          const loadedMails = Object.keys(data).map((key) => ({
-            id: key,
-            ...data[key],
-          }));
-          setMails(loadedMails);
-        }
-      } catch (err) {
-        console.error("❌ Error fetching inbox:", err.message);
-      }
-    };
-
-    fetchMails();
-  }, [email, dbUrl]);
   const handleDeleteMail = async (mailId) => {
     try {
       await fetch(
         `${dbUrl}/mails/${sanitizeEmail(email)}/inbox/${mailId}.json`,
-        {
-          method: "DELETE",
-        }
+        { method: "DELETE" }
       );
-
-      // Remove from local state
-      setMails((prev) => prev.filter((mail) => mail.id !== mailId));
-
-      // If the deleted mail was selected, clear it
-      if (selectedMail?.id === mailId) {
-        setSelectedMail(null);
-      }
+      setMails((prev) => prev.filter((m) => m.id !== mailId));
     } catch (err) {
       console.error("❌ Error deleting mail:", err.message);
     }
   };
+
+  const fetchMails = useCallback(async () => {
+    if (!email) return;
+    try {
+      const response = await fetch(
+        `${dbUrl}/mails/${sanitizeEmail(email)}/inbox.json`
+      );
+      const data = await response.json();
+      if (data) {
+        const loadedMails = Object.keys(data).map((key) => ({
+          id: key,
+          ...data[key],
+        }));
+        setMails((prev) => {
+          const prevIds = prev
+            .map((m) => m.id)
+            .sort()
+            .join(",");
+          const newIds = loadedMails
+            .map((m) => m.id)
+            .sort()
+            .join(",");
+          return prevIds !== newIds ? loadedMails : prev;
+        });
+      } else {
+        console.log("📬 No new mails found");
+        setMails([]);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching inbox:", err.message);
+    }
+  }, [email, dbUrl]);
+
+  useEffect(() => {
+    fetchMails();
+    console.log("📬 Fetched mails for inbox");
+   
+  pollingRef.current = setInterval(() => {
+    console.log("⏱️ Polling inbox every 2 seconds...");
+    fetchMails();
+  }, 2000);
+
+    return () => clearInterval(pollingRef.current);
+  }, [fetchMails]);
+
   return (
     <Container fluid className="mt-4">
-      {/* 🔹 Header with unread count */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold">
           📥 Inbox <Badge bg="primary">{unreadCount} Unread</Badge>
@@ -120,7 +124,6 @@ const Inbox = () => {
       </div>
 
       <Row>
-        {/* 🔹 Left Mail List */}
         <Col md={4} style={{ maxHeight: "80vh", overflowY: "auto" }}>
           <ListGroup>
             {mails.length === 0 && (
@@ -128,43 +131,39 @@ const Inbox = () => {
             )}
             {mails.map((mail) => (
               <ListGroup.Item
+                as="div"
                 key={mail.id}
                 action
                 active={selectedMail?.id === mail.id}
-                onClick={() => handleSelectMail(mail)}
                 className="mb-2 rounded shadow-sm d-flex justify-content-between align-items-center"
               >
-                <div>
+                <div
+                  onClick={() => handleSelectMail(mail)}
+                  style={{ cursor: "pointer", flex: 1 }}
+                >
                   <div className="fw-bold">{mail.subject}</div>
                   <small className="text-muted">From: {mail.from}</small>
+                  {!mail.read && (
+                    <span className="text-primary fw-bold fs-5 ms-2">●</span>
+                  )}
                 </div>
-                {!mail.read && (
-                  <span className="text-primary fw-bold fs-5">●</span>
-                )}
                 <Button
-                  variant="danger"
+                  variant="outline-danger"
                   size="sm"
                   onClick={() => handleDeleteMail(mail.id)}
                 >
-                  🗑️
+                  🗑
                 </Button>
               </ListGroup.Item>
             ))}
           </ListGroup>
         </Col>
 
-        {/* 🔹 Right Mail Details */}
         <Col md={8}>
           {selectedMail ? (
             <Card className="shadow-lg">
               <Card.Body>
-                <h4 className="fw-bold ">Subject: {selectedMail.subject}  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <Button
-                  variant="danger"
-                  size="md"
-                  onClick={() => handleDeleteMail(selectedMail.id)}
-                >
-                  🗑️
-                </Button></h4>
+                <h4 className="fw-bold">Subject: {selectedMail.subject}</h4>
                 <p>
                   <strong>From:</strong> {selectedMail.from}
                 </p>

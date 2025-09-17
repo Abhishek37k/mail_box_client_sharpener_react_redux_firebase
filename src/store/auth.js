@@ -42,7 +42,7 @@ export const signupUser = ({ email, password }) => {
 export const loginUser = ({ email, password }) => {
   return async (dispatch) => {
     try {
-      console.log("Firebase API key:", process.env.REACT_APP_FIREBASE_API_KEY);
+      // console.log("Firebase API key:", process.env.REACT_APP_FIREBASE_API_KEY);
       const response = await fetch(
         `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.REACT_APP_FIREBASE_API_KEY}`,
         {
