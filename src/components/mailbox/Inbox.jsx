@@ -43,9 +43,7 @@ const Inbox = () => {
 
         // Update local state
         setMails((prev) =>
-          prev.map((m) =>
-            m.id === mail.id ? { ...m, read: true } : m
-          )
+          prev.map((m) => (m.id === mail.id ? { ...m, read: true } : m))
         );
 
         // Update Redux (if needed later)
@@ -80,7 +78,26 @@ const Inbox = () => {
 
     fetchMails();
   }, [email, dbUrl]);
+  const handleDeleteMail = async (mailId) => {
+    try {
+      await fetch(
+        `${dbUrl}/mails/${sanitizeEmail(email)}/inbox/${mailId}.json`,
+        {
+          method: "DELETE",
+        }
+      );
 
+      // Remove from local state
+      setMails((prev) => prev.filter((mail) => mail.id !== mailId));
+
+      // If the deleted mail was selected, clear it
+      if (selectedMail?.id === mailId) {
+        setSelectedMail(null);
+      }
+    } catch (err) {
+      console.error("❌ Error deleting mail:", err.message);
+    }
+  };
   return (
     <Container fluid className="mt-4">
       {/* 🔹 Header with unread count */}
@@ -124,6 +141,13 @@ const Inbox = () => {
                 {!mail.read && (
                   <span className="text-primary fw-bold fs-5">●</span>
                 )}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => handleDeleteMail(mail.id)}
+                >
+                  🗑️
+                </Button>
               </ListGroup.Item>
             ))}
           </ListGroup>
@@ -134,7 +158,13 @@ const Inbox = () => {
           {selectedMail ? (
             <Card className="shadow-lg">
               <Card.Body>
-                <h4 className="fw-bold">Subject: {selectedMail.subject}</h4>
+                <h4 className="fw-bold ">Subject: {selectedMail.subject}  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <Button
+                  variant="danger"
+                  size="md"
+                  onClick={() => handleDeleteMail(selectedMail.id)}
+                >
+                  🗑️
+                </Button></h4>
                 <p>
                   <strong>From:</strong> {selectedMail.from}
                 </p>
