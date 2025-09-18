@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,17 +11,39 @@ import {
   Badge,
 } from "react-bootstrap";
 import { mailActions } from "../../store/mail-slice";
+import useFetch from "../CustomHooks/useFetch";
 
 const Inbox = () => {
   const [mails, setMails] = useState([]);
   const [selectedMail, setSelectedMail] = useState(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const pollingRef = useRef(null);
 
   const sanitizeEmail = (email) => email.replace(/\./g, ",");
   const email = useSelector((state) => state.auth.userEmail);
   const dbUrl = process.env.REACT_APP_FIREBASE_DB_URL;
+
+  const url = email
+    ? `${dbUrl}/mails/${sanitizeEmail(email)}/inbox.json`
+    : null;
+
+  const { data, loading, error } = useFetch(url, 2000);
+
+  useEffect(() => {
+    if (data) {
+      const loadedMails = Object.keys(data).map((key) => ({
+        id: key,
+        ...data[key],
+      }));
+      setMails((prev) => {
+        const prevIds = prev.map((m) => m.id).sort().join(",");
+        const newIds = loadedMails.map((m) => m.id).sort().join(",");
+        return prevIds !== newIds ? loadedMails : prev;
+      });
+    } else if (data === null) {
+      setMails([]);
+    }
+  }, [data]);
 
   const unreadCount = mails.filter((mail) => !mail.read).length;
 
@@ -59,50 +81,6 @@ const Inbox = () => {
     }
   };
 
-  const fetchMails = useCallback(async () => {
-    if (!email) return;
-    try {
-      const response = await fetch(
-        `${dbUrl}/mails/${sanitizeEmail(email)}/inbox.json`
-      );
-      const data = await response.json();
-      if (data) {
-        const loadedMails = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }));
-        setMails((prev) => {
-          const prevIds = prev
-            .map((m) => m.id)
-            .sort()
-            .join(",");
-          const newIds = loadedMails
-            .map((m) => m.id)
-            .sort()
-            .join(",");
-          return prevIds !== newIds ? loadedMails : prev;
-        });
-      } else {
-        console.log("📬 No new mails found");
-        setMails([]);
-      }
-    } catch (err) {
-      console.error("❌ Error fetching inbox:", err.message);
-    }
-  }, [email, dbUrl]);
-
-  useEffect(() => {
-    fetchMails();
-    console.log("📬 Fetched mails for inbox");
-   
-  pollingRef.current = setInterval(() => {
-    console.log("⏱️ Polling inbox every 2 seconds...");
-    fetchMails();
-  }, 2000);
-
-    return () => clearInterval(pollingRef.current);
-  }, [fetchMails]);
-
   return (
     <Container fluid className="mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -126,7 +104,9 @@ const Inbox = () => {
       <Row>
         <Col md={4} style={{ maxHeight: "80vh", overflowY: "auto" }}>
           <ListGroup>
-            {mails.length === 0 && (
+            {loading && <ListGroup.Item>Loading mails...</ListGroup.Item>}
+            {error && <ListGroup.Item>Error: {error}</ListGroup.Item>}
+            {!loading && mails.length === 0 && (
               <ListGroup.Item>No mails found</ListGroup.Item>
             )}
             {mails.map((mail) => (

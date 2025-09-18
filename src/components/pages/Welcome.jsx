@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate, Outlet } from "react-router-dom";
-import { authActions } from "../../store/auth-slice";
+// import { authActions } from "../../store/auth-slice";
 import { Button, Badge } from "react-bootstrap";
 
 const Welcome = () => {
   const email = useSelector((state) => state.auth.userEmail);
   const [unreadCount, setUnreadCount] = useState(0);
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const dbUrl = process.env.REACT_APP_FIREBASE_DB_URL;
@@ -37,10 +37,10 @@ const Welcome = () => {
     fetchUnreadCount();
   }, [email, dbUrl]);
 
-  const logoutHandler = () => {
-    dispatch(authActions.logout());
-    navigate("/login");
-  };
+  // const logoutHandler = () => {
+  //   dispatch(authActions.logout());
+  //   navigate("/login");
+  // };
 
   return (
     <div style={{ display: "flex", height: "100vh" }}>
@@ -87,12 +87,12 @@ const Welcome = () => {
 
         <div style={{ marginTop: "auto" }}>
           <p>
-            Logged in as: <br />
+            Logged in as:
             <strong style={{ wordBreak: "break-word" }}>{email}</strong>
           </p>
-          <Button onClick={logoutHandler} variant="danger" className="w-100">
+          {/* <Button onClick={logoutHandler} variant="danger" className="w-100">
             🚪 Logout
-          </Button>
+          </Button> */}
         </div>
       </div>
 
